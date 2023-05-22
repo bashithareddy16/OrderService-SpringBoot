@@ -27,7 +27,7 @@ public class orderResponse {
         private String productName;
         private long price;
         private long quantity;
-        private long product_ID;
+        private long productId;
     }
 
     @Data

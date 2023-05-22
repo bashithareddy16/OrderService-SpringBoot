@@ -7,6 +7,7 @@ import com.example.OrderService.exception.CustomException;
 import com.example.OrderService.external.client.paymentService;
 import com.example.OrderService.external.client.productService;
 import com.example.OrderService.external.client.request.paymentRequest;
+import com.example.OrderService.external.client.response.productResponse;
 import com.example.OrderService.model.orderRequest;
 import com.example.OrderService.model.orderResponse;
 import com.example.OrderService.repository.orderRepository;
@@ -29,6 +30,7 @@ public class orderServiceImpl implements orderService{
     @Autowired
     private paymentService PaymentService;
 
+
     @Autowired
     private RestTemplate restTemplate;
     @Override
@@ -36,13 +38,47 @@ public class orderServiceImpl implements orderService{
         log.info("Get order details of order Id : {} ", orderId);
         order Order = OrderRepository.findById(orderId)
                 .orElseThrow(()->new CustomException("Order not found with order ID: {}", "NOT_FOUND",404));
-        log.info("Getting payment information from the payment Service");
+
+        log.info("Invoking Product service to fetch the product for id: {}", Order.getProductId());
+        productResponse ProductResponse
+                = restTemplate.getForObject(
+                "http://PRODUCT-SERVICE/products/"  + Order.getProductId(),
+                productResponse.class
+        );
+
+        log.info("Getting payment information form the payment Service");
+        paymentResponse PaymentResponse
+                = restTemplate.getForObject("http://PAYMENT-SERVICE/payment/order/" + Order.getOrderId(),
+                paymentResponse.class
+        );
+
+        orderResponse.productDetails ProductDetails = orderResponse.productDetails.builder()
+                .productName(ProductResponse.getProductName())
+                .productId(ProductResponse.getProductId())
+                .price(ProductResponse.getPrice())
+                .quantity(Order.getQuantity())
+                .build();
+
+
+        orderResponse.paymentDetails PaymentDetails
+                = orderResponse.paymentDetails
+                .builder()
+                .paymentId(PaymentResponse.getPaymentId())
+                .paymentStatus(PaymentResponse.getPaymentStatus())
+                .amount(PaymentResponse.getAmount())
+                .orderId(PaymentResponse.getOrderId())
+                .paymentDate(PaymentResponse.getPaymentDate())
+                .PaymentType(PaymentResponse.getPaymentType())
+                .build();
+
 
         orderResponse OrderResponse = orderResponse.builder()
                 .orderId(Order.getOrderId())
                 .orderStatus(Order.getOrderStatus())
                 .amount(Order.getAmount())
                 .orderDate(Order.getOrderDate())
+                .ProductDetails(ProductDetails)
+                .PaymentDetails(PaymentDetails)
                 .build();
 
         return OrderResponse;
@@ -67,9 +103,11 @@ public class orderServiceImpl implements orderService{
         log.info("Calling Payment Service to complete the payment");
         paymentRequest PaymentRequest = paymentRequest.builder()
                 .orderId(Order.getOrderId())
-                .paymentType(orderRequest.getPaymentType())
+                .PaymentType(orderRequest.getPaymentType())
                 .amount(orderRequest.getAmount())
                 .build();
+
+
         String orderStatus = null;
         try{
             PaymentService.doPayment(PaymentRequest);

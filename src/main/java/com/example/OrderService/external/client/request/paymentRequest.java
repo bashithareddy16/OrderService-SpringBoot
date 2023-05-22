@@ -13,8 +13,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class paymentRequest {
 
-    private long orderId;
-    private long amount;
+    private Long orderId;
+    private Long amount;
     private String referenceNumber;
-    private paymentType paymentType;
+    private paymentType PaymentType;
 }
